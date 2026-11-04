@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f7f5ef">
+    <title>Our Recipe Table</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #26352b;
+            --muted: #68766b;
+            --green: #376b4a;
+            --green-dark: #285238;
+            --cream: #f7f5ef;
+            --card: #fffefa;
+            --line: #e6e5dc;
+            --orange: #e8a24a;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--cream);
+            color: var(--ink);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.55;
+        }
+        button, input, textarea { font: inherit; }
+        button { cursor: pointer; }
+        .hero {
+            padding: 3.5rem 1.25rem 3rem;
+            background: radial-gradient(ellipse at 80% 10%, #f5dcae 0, transparent 34%), #e9efe5;
+        }
+        .hero-inner, main { width: min(1050px, 100% - 2rem); margin: 0 auto; }
+        .eyebrow {
+            margin: 0 0 .45rem;
+            color: var(--green);
+            font-size: .78rem;
+            font-weight: 800;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+        }
+        h1, h2, h3, p { margin-top: 0; }
+        h1 { max-width: 650px; margin-bottom: .6rem; font-family: Georgia, serif; font-size: clamp(2.5rem, 7vw, 4.5rem); line-height: 1.02; letter-spacing: -.04em; }
+        .hero-copy { max-width: 560px; margin-bottom: 1.5rem; color: #536454; font-size: 1.08rem; }
+        .hero-link, .primary-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            border-radius: 999px;
+            background: var(--green);
+            color: white;
+            font-weight: 750;
+            text-decoration: none;
+            transition: background .2s, transform .2s;
+        }
+        .hero-link { padding: .8rem 1.2rem; }
+        .hero-link:hover, .primary-btn:hover { background: var(--green-dark); transform: translateY(-1px); }
+        main { padding: 2rem 0 4rem; }
+        .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+        h2 { margin-bottom: .15rem; font-family: Georgia, serif; font-size: clamp(1.7rem, 4vw, 2.35rem); }
+        .section-heading p { margin-bottom: 0; color: var(--muted); }
+        .count { flex: 0 0 auto; padding: .35rem .7rem; border-radius: 999px; background: #e8eee5; color: var(--green-dark); font-size: .85rem; font-weight: 750; }
+        .toolbar { margin: 1.25rem 0; }
+        .toolbar input, .field input, .field textarea {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: white;
+            color: var(--ink);
+            padding: .8rem .9rem;
+        }
+        input:focus, textarea:focus { outline: 3px solid #c9dfce; border-color: var(--green); }
+        .recipe-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 1rem; }
+        .recipe-card, .form-card {
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: var(--card);
+            box-shadow: 0 8px 26px #26352b0a;
+        }
+        .recipe-card { padding: 1.25rem; }
+        .recipe-card h3 { margin-bottom: .4rem; font-family: Georgia, serif; font-size: 1.45rem; line-height: 1.2; }
+        .recipe-description { color: var(--muted); }
+        .recipe-card h4 { margin: 1rem 0 .35rem; color: var(--green-dark); font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; }
+        .recipe-card ul, .recipe-card ol { margin: 0; padding-left: 1.25rem; }
+        .recipe-card li + li { margin-top: .25rem; }
+        .empty, .error-message { padding: 1.2rem; border: 1px dashed #c9cec4; border-radius: 12px; color: var(--muted); text-align: center; }
+        .form-section { margin-top: 3.5rem; padding-top: 2rem; border-top: 1px solid var(--line); }
+        .form-card { max-width: 760px; padding: clamp(1.1rem, 4vw, 2rem); }
+        .form-intro { margin-bottom: 1.5rem; color: var(--muted); }
+        .field { margin-top: 1rem; }
+        .field label, .list-label { display: block; margin-bottom: .4rem; font-weight: 750; }
+        .field textarea { min-height: 90px; resize: vertical; }
+        .list-label { margin-top: 1.35rem; }
+        .item-row { display: flex; align-items: center; gap: .55rem; margin-top: .55rem; }
+        .item-row input { flex: 1; min-width: 0; }
+        .secondary-btn, .remove-btn {
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: white;
+            color: var(--green-dark);
+            font-weight: 700;
+        }
+        .secondary-btn { margin-top: .7rem; padding: .55rem .85rem; }
+        .secondary-btn:hover { background: #edf3eb; }
+        .remove-btn { width: 2.6rem; height: 2.6rem; flex: 0 0 auto; color: #a34539; font-size: 1.1rem; }
+        .primary-btn { width: 100%; margin-top: 1.5rem; padding: .9rem 1.2rem; }
+        .status { min-height: 1.5rem; margin: .8rem 0 0; font-weight: 650; }
+        .status[data-state="success"] { color: var(--green-dark); }
+        .status[data-state="error"] { color: #a33228; }
+        footer { padding: 1rem; color: var(--muted); font-size: .85rem; text-align: center; }
+        @media (max-width: 520px) {
+            .hero { padding-top: 2.5rem; }
+            .section-heading { align-items: start; }
+        }
+    </style>
+</head>
+<body>
+    <header class="hero">
+        <div class="hero-inner">
+            <p class="eyebrow">Good food, shared</p>
+            <h1>Our Recipe Table</h1>
+            <p class="hero-copy">A growing collection of recipes from everyone. Find something lovely to cook, then add a favorite of your own.</p>
+            <a class="hero-link" href="#add-recipe">＋ Share a recipe</a>
+        </div>
+    </header>
+
+    <main>
+        <section aria-labelledby="recipes-heading">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">From our kitchens</p>
+                    <h2 id="recipes-heading">Community recipes</h2>
+                    <p>Every recipe shared here is available to everyone.</p>
+                </div>
+                <span class="count" id="recipe-count" aria-live="polite">Loading…</span>
+            </div>
+            <div class="toolbar">
+                <label for="search-recipes" class="eyebrow">Find a recipe</label>
+                <input id="search-recipes" type="search" placeholder="Search names, ingredients, or descriptions">
+            </div>
+            <div id="recipe-list" class="recipe-grid" aria-live="polite">
+                <p class="empty">Loading recipes…</p>
+            </div>
+        </section>
+
+        <section class="form-section" id="add-recipe" aria-labelledby="add-heading">
+            <div class="form-card">
+                <p class="eyebrow">Everyone can contribute</p>
+                <h2 id="add-heading">Add your recipe</h2>
+                <p class="form-intro">No account needed. Your recipe will be shared with everyone who visits this site.</p>
+                <form id="recipe-form">
+                    <div class="field">
+                        <label for="recipe-name">Recipe name <span aria-hidden="true">*</span></label>
+                        <input id="recipe-name" name="name" maxlength="100" placeholder="e.g. Nasi Lemak" required>
+                    </div>
+                    <div class="field">
+                        <label for="recipe-description">A little about it</label>
+                        <textarea id="recipe-description" name="description" maxlength="500" placeholder="What makes this recipe special?"></textarea>
+                    </div>
+                    <div>
+                        <span class="list-label">Ingredients <span aria-hidden="true">*</span></span>
+                        <div id="ingredients-list"></div>
+                        <button class="secondary-btn" type="button" data-add="ingredient">＋ Add ingredient</button>
+                    </div>
+                    <div>
+                        <span class="list-label">Steps <span aria-hidden="true">*</span></span>
+                        <div id="steps-list"></div>
+                        <button class="secondary-btn" type="button" data-add="step">＋ Add step</button>
+                    </div>
+                    <button class="primary-btn" id="submit-recipe" type="submit">Share recipe</button>
+                    <p class="status" id="form-status" role="status" aria-live="polite"></p>
+                </form>
+            </div>
+        </section>
+    </main>
+    <footer>Made for sharing good food.</footer>
+
+    <script>
+        const recipeList = document.getElementById('recipe-list');
+        const recipeCount = document.getElementById('recipe-count');
+        const form = document.getElementById('recipe-form');
+        const statusBox = document.getElementById('form-status');
+        let recipes = [];
+
+        function addItem(kind, value = '') {
+            const isIngredient = kind === 'ingredient';
+            const area = document.getElementById(isIngredient ? 'ingredients-list' : 'steps-list');
+            const row = document.createElement('div');
+            row.className = 'item-row';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.maxLength = isIngredient ? 160 : 500;
+            input.placeholder = isIngredient ? 'e.g. 2 cups of rice' : 'Describe what to do';
+            input.setAttribute('aria-label', isIngredient ? 'Ingredient' : 'Recipe step');
+            input.value = value;
+            row.append(input);
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'remove-btn';
+            remove.textContent = '×';
+            remove.setAttribute('aria-label', `Remove ${isIngredient ? 'ingredient' : 'step'}`);
+            remove.addEventListener('click', () => row.remove());
+            row.append(remove);
+            area.append(row);
+        }
+
+        function makeList(title, items, ordered) {
+            const section = document.createElement('section');
+            const heading = document.createElement('h4');
+            heading.textContent = title;
+            section.append(heading);
+            const list = document.createElement(ordered ? 'ol' : 'ul');
+            items.forEach(item => {
+                const entry = document.createElement('li');
+                entry.textContent = item;
+                list.append(entry);
+            });
+            section.append(list);
+            return section;
+        }
+
+        function renderRecipes() {
+            const query = document.getElementById('search-recipes').value.trim().toLowerCase();
+            const matches = recipes.filter(recipe =>
+                [recipe.name, recipe.description, ...recipe.ingredients, ...recipe.instructions]
+                    .join(' ')
+                    .toLowerCase()
+                    .includes(query)
+            );
+            recipeCount.textContent = `${recipes.length} ${recipes.length === 1 ? 'recipe' : 'recipes'}`;
+            recipeList.replaceChildren();
+
+            if (!matches.length) {
+                const empty = document.createElement('p');
+                empty.className = 'empty';
+                empty.textContent = recipes.length ? 'No recipes match your search yet.' : 'No recipes yet. Be the first to share one!';
+                recipeList.append(empty);
+                return;
+            }
+
+            matches.forEach(recipe => {
+                const card = document.createElement('article');
+                card.className = 'recipe-card';
+                const title = document.createElement('h3');
+                title.textContent = recipe.name;
+                card.append(title);
+                if (recipe.description) {
+                    const description = document.createElement('p');
+                    description.className = 'recipe-description';
+                    description.textContent = recipe.description;
+                    card.append(description);
+                }
+                card.append(makeList('Ingredients', recipe.ingredients, false));
+                card.append(makeList('Method', recipe.instructions, true));
+                recipeList.append(card);
+            });
+        }
+
+        async function loadRecipes() {
+            try {
+                const response = await fetch('/api/recipes');
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Could not load recipes.');
+                recipes = result.recipes;
+                renderRecipes();
+            } catch (error) {
+                recipeCount.textContent = 'Unavailable';
+                recipeList.replaceChildren();
+                const message = document.createElement('p');
+                message.className = 'error-message';
+                message.textContent = `${error.message} Please refresh the page or try again later.`;
+                recipeList.append(message);
+            }
+        }
+
+        document.querySelectorAll('[data-add]').forEach(button => {
+            button.addEventListener('click', () => addItem(button.dataset.add));
+        });
+        document.getElementById('search-recipes').addEventListener('input', renderRecipes);
+        addItem('ingredient');
+        addItem('step');
+        loadRecipes();
+
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            const ingredients = [...document.querySelectorAll('#ingredients-list input')]
+                .map(input => input.value.trim()).filter(Boolean);
+            const instructions = [...document.querySelectorAll('#steps-list input')]
+                .map(input => input.value.trim()).filter(Boolean);
+            const recipe = {
+                name: document.getElementById('recipe-name').value.trim(),
+                description: document.getElementById('recipe-description').value.trim(),
+                ingredients,
+                instructions
+            };
+
+            if (!ingredients.length || !instructions.length) {
+                statusBox.dataset.state = 'error';
+                statusBox.textContent = 'Please add at least one ingredient and one step.';
+                return;
+            }
+
+            const submitButton = document.getElementById('submit-recipe');
+            submitButton.disabled = true;
+            statusBox.dataset.state = '';
+            statusBox.textContent = 'Sharing your recipe…';
+            try {
+                const response = await fetch('/api/recipes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(recipe)
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Could not save your recipe.');
+                recipes = result.recipes;
+                renderRecipes();
+                form.reset();
+                document.getElementById('ingredients-list').replaceChildren();
+                document.getElementById('steps-list').replaceChildren();
+                addItem('ingredient');
+                addItem('step');
+                statusBox.dataset.state = 'success';
+                statusBox.textContent = 'Your recipe has been shared with everyone. Thank you!';
+                document.getElementById('recipes-heading').scrollIntoView({ behavior: 'smooth' });
+            } catch (error) {
+                statusBox.dataset.state = 'error';
+                statusBox.textContent = error.message;
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
