@@ -1,8 +1,5 @@
 {
   "name": "community-recipe-table",
   "private": true,
-  "version": "1.0.0",
-  "dependencies": {
-    "@netlify/blobs": "^10.0.0"
-  }
+  "version": "1.0.0"
 }

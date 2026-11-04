@@ -7,12 +7,30 @@ const PORT = Number(process.env.PORT) || 3000;
 const DATA_FILE = path.join(__dirname, 'recipes.json');
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_ITEMS = 100;
+const ALLOWED_ORIGIN = process.env.RECIPE_ALLOWED_ORIGIN || 'https://recipewebs.netlify.app';
 
-function sendJson(res, status, data) {
+function corsHeaders(req) {
+  const origin = req.headers.origin;
+  const headers = {
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin'
+  };
+  if (ALLOWED_ORIGIN === '*') {
+    headers['Access-Control-Allow-Origin'] = '*';
+  } else if (origin === ALLOWED_ORIGIN) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  return headers;
+}
+
+function sendJson(res, status, data, req) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
-    'X-Content-Type-Options': 'nosniff'
+    'X-Content-Type-Options': 'nosniff',
+    ...corsHeaders(req)
   });
   res.end(JSON.stringify(data));
 }
@@ -95,6 +113,12 @@ const server = http.createServer((req, res) => {
   const rawPathname = new URL(req.url, 'http://localhost').pathname;
   const pathname = rawPathname.length > 1 ? rawPathname.replace(/\/+$/, '') : rawPathname;
 
+  if (pathname.startsWith('/api/') && req.method === 'OPTIONS') {
+    res.writeHead(204, corsHeaders(req));
+    res.end();
+    return;
+  }
+
   if (req.method === 'GET' && (pathname === '/' || pathname === '/index.html')) {
     fs.readFile(path.join(__dirname, 'index.html'), (error, data) => {
       if (error) {
@@ -114,20 +138,20 @@ const server = http.createServer((req, res) => {
 
   if (pathname === '/api/recipes' && req.method === 'GET') {
     try {
-      sendJson(res, 200, readRecipes());
+      sendJson(res, 200, readRecipes(), req);
     } catch (error) {
       console.error('Unable to read recipes.json:', error);
-      sendJson(res, 500, { error: 'Unable to load recipes. Check the server data file.' });
+      sendJson(res, 500, { error: 'Unable to load recipes. Check the server data file.' }, req);
     }
     return;
   }
 
   if (pathname === '/recipes.json' && req.method === 'GET') {
     try {
-      sendJson(res, 200, readRecipes());
+      sendJson(res, 200, readRecipes(), req);
     } catch (error) {
       console.error('Unable to read recipes.json:', error);
-      sendJson(res, 500, { error: 'Unable to load recipes.json.' });
+      sendJson(res, 500, { error: 'Unable to load recipes.json.' }, req);
     }
     return;
   }
@@ -145,7 +169,7 @@ const server = http.createServer((req, res) => {
     });
     req.on('end', () => {
       if (bodyTooLarge) {
-        sendJson(res, 413, { error: 'Recipe submission is too large.' });
+        sendJson(res, 413, { error: 'Recipe submission is too large.' }, req);
         return;
       }
 
@@ -153,13 +177,13 @@ const server = http.createServer((req, res) => {
       try {
         submitted = JSON.parse(body);
       } catch {
-        sendJson(res, 400, { error: 'Request must contain valid JSON.' });
+        sendJson(res, 400, { error: 'Request must contain valid JSON.' }, req);
         return;
       }
 
       const recipe = validateRecipe(submitted);
       if (typeof recipe === 'string') {
-        sendJson(res, 400, { error: recipe });
+        sendJson(res, 400, { error: recipe }, req);
         return;
       }
 
@@ -167,10 +191,10 @@ const server = http.createServer((req, res) => {
         const data = readRecipes();
         data.recipes.push(recipe);
         writeRecipes(data);
-        sendJson(res, 201, { success: true, totalRecipes: data.recipes.length, recipes: data.recipes });
+        sendJson(res, 201, { success: true, totalRecipes: data.recipes.length, recipes: data.recipes }, req);
       } catch (error) {
         console.error('Unable to save recipe:', error);
-        sendJson(res, 500, { error: 'Unable to save the recipe. Check the server data file.' });
+        sendJson(res, 500, { error: 'Unable to save the recipe. Check the server data file.' }, req);
       }
     });
     return;
@@ -178,12 +202,12 @@ const server = http.createServer((req, res) => {
 
   if (pathname === '/api/recipes' && req.method !== 'GET' && req.method !== 'POST') {
     res.setHeader('Allow', 'GET, POST');
-    sendJson(res, 405, { error: 'Method not allowed.' });
+    sendJson(res, 405, { error: 'Method not allowed.' }, req);
     return;
   }
 
   if (pathname.startsWith('/api/')) {
-    sendJson(res, 404, { error: 'API endpoint not found.' });
+    sendJson(res, 404, { error: 'API endpoint not found.' }, req);
     return;
   }
 
@@ -211,7 +235,7 @@ try {
   process.exit();
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, '127.0.0.1', () => {
   console.log(`Recipe table running at http://localhost:${PORT}`);
-  console.log(`Shared recipes are stored in: ${DATA_FILE}`);
+  console.log(`Local recipes are stored in: ${DATA_FILE}`);
 });

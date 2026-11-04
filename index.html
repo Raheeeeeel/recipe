@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f7f5ef">
+    <meta name="recipe-api-base" content="https://contributors-css-ons-lock.trycloudflare.com">
     <title>Our Recipe Table</title>
     <style>
         :root {
@@ -184,9 +185,9 @@
             <div class="form-card">
                 <p class="eyebrow">Everyone can contribute</p>
                 <h2 id="add-heading">Add your recipe</h2>
-                <p class="form-intro">No account needed. Recipes are saved as shared JSON data on Netlify.</p>
-                <p class="sharing-note" id="sharing-note" role="status">Recipes you add are saved to Netlify and shared with everyone. No API keys are needed.</p>
-                <a class="json-link" href="/api/recipes" target="_blank" rel="noopener">View the latest recipes JSON ↗</a>
+                <p class="form-intro">No account needed. Recipes are saved to the owner’s <code>recipes.json</code> file.</p>
+                <p class="sharing-note" id="sharing-note" role="status">Recipes are saved directly to the owner’s computer. The owner’s computer and secure tunnel must be online to accept submissions.</p>
+                <a class="json-link" id="json-link" href="/recipes.json" target="_blank" rel="noopener">View the saved recipes.json ↗</a>
                 <form id="recipe-form">
                     <div class="field">
                         <label for="recipe-name">Recipe name <span aria-hidden="true">*</span></label>
@@ -219,6 +220,8 @@
         const recipeCount = document.getElementById('recipe-count');
         const form = document.getElementById('recipe-form');
         const statusBox = document.getElementById('form-status');
+        const apiBase = document.querySelector('meta[name="recipe-api-base"]').content.trim().replace(/\/+$/, '');
+        const apiUrl = path => `${apiBase}${path}`;
         let recipes = [];
 
         class ApiUnavailableError extends Error {}
@@ -288,7 +291,7 @@
             const message = document.createElement('p');
             message.className = 'error-message';
             message.textContent = error instanceof ApiUnavailableError || error instanceof TypeError
-                ? 'The recipe API is unavailable. On Netlify, check that the recipes function is deployed and configured. When testing locally, run "node server.js".'
+                ? 'The recipe server is unavailable. The owner’s computer and secure tunnel must be online. If you are the owner, start the server and tunnel.'
                 : error.message;
             recipeList.append(message);
         }
@@ -332,7 +335,7 @@
 
         async function loadRecipes() {
             try {
-                const response = await fetch('/api/recipes');
+                const response = await fetch(apiUrl('/api/recipes'));
                 const result = await readApiResponse(response);
                 if (!result || !Array.isArray(result.recipes)) {
                     throw new Error('The recipe server returned data in an unexpected format.');
@@ -347,6 +350,7 @@
         document.querySelectorAll('[data-add]').forEach(button => {
             button.addEventListener('click', () => addItem(button.dataset.add));
         });
+        document.getElementById('json-link').href = apiUrl('/recipes.json');
         document.getElementById('search-recipes').addEventListener('input', renderRecipes);
         addItem('ingredient');
         addItem('step');
@@ -376,7 +380,7 @@
             statusBox.dataset.state = '';
             statusBox.textContent = 'Sharing your recipe…';
             try {
-                const response = await fetch('/api/recipes', {
+                const response = await fetch(apiUrl('/api/recipes'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(recipe)
@@ -393,12 +397,12 @@
                 addItem('ingredient');
                 addItem('step');
                 statusBox.dataset.state = 'success';
-                statusBox.textContent = 'Your recipe has been saved to the shared Netlify recipe collection. Thank you!';
+                statusBox.textContent = 'Your recipe has been saved to this computer’s recipes.json. Thank you!';
                 document.getElementById('recipes-heading').scrollIntoView({ behavior: 'smooth' });
             } catch (error) {
                 statusBox.dataset.state = 'error';
                 statusBox.textContent = error instanceof ApiUnavailableError || error instanceof TypeError
-                    ? 'The recipe API is unavailable. This recipe was not saved. Check the Netlify function or run "node server.js" locally.'
+                    ? 'The recipe server is unavailable. The owner’s computer and secure tunnel must be online. This recipe was not saved.'
                     : error.message;
             } finally {
                 submitButton.disabled = false;
