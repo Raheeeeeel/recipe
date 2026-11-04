@@ -184,8 +184,8 @@
             <div class="form-card">
                 <p class="eyebrow">Everyone can contribute</p>
                 <h2 id="add-heading">Add your recipe</h2>
-                <p class="form-intro">No account needed. Recipes are saved to the site’s GitHub <code>recipes.json</code> file.</p>
-                <p class="sharing-note" id="sharing-note" role="status">Recipes you add are saved to the connected GitHub repository and shared with everyone.</p>
+                <p class="form-intro">No account needed. Recipes are saved as shared JSON data on Netlify.</p>
+                <p class="sharing-note" id="sharing-note" role="status">Recipes you add are saved to Netlify and shared with everyone. No API keys are needed.</p>
                 <a class="json-link" href="/api/recipes" target="_blank" rel="noopener">View the latest recipes JSON ↗</a>
                 <form id="recipe-form">
                     <div class="field">
@@ -393,7 +393,7 @@
                 addItem('ingredient');
                 addItem('step');
                 statusBox.dataset.state = 'success';
-                statusBox.textContent = 'Your recipe has been saved to GitHub recipes.json. Thank you!';
+                statusBox.textContent = 'Your recipe has been saved to the shared Netlify recipe collection. Thank you!';
                 document.getElementById('recipes-heading').scrollIntoView({ behavior: 'smooth' });
             } catch (error) {
                 statusBox.dataset.state = 'error';

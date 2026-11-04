@@ -1,32 +1,22 @@
+const { getStore } = require('@netlify/blobs');
+
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_ITEMS = 100;
-const RECIPES_PATH = 'recipes.json';
+const STORE_NAME = 'recipe-table';
+const RECIPES_KEY = 'recipes.json';
+const MAX_SAVE_ATTEMPTS = 5;
 
-function respond(statusCode, data) {
+function respond(statusCode, data, extraHeaders = {}) {
   return {
     statusCode,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff'
+      'X-Content-Type-Options': 'nosniff',
+      ...extraHeaders
     },
     body: JSON.stringify(data)
   };
-}
-
-function getSettings() {
-  const token = process.env.RECIPE_GITHUB_TOKEN;
-  const repository = process.env.RECIPE_GITHUB_REPOSITORY;
-  const branch = process.env.RECIPE_GITHUB_BRANCH;
-
-  if (!token || !repository || !branch) {
-    throw new Error('Recipe saving is not configured. Set RECIPE_GITHUB_TOKEN, RECIPE_GITHUB_REPOSITORY, and RECIPE_GITHUB_BRANCH in Netlify.');
-  }
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
-    throw new Error('RECIPE_GITHUB_REPOSITORY must use the owner/repository format.');
-  }
-
-  return { token, repository, branch };
 }
 
 function validateRecipe(value) {
@@ -64,110 +54,70 @@ function validateRecipe(value) {
   };
 }
 
-function recipesUrl(repository, branch) {
-  const url = new URL(`https://api.github.com/repos/${repository}/contents/${RECIPES_PATH}`);
-  return url;
+async function readRecipes(store) {
+  const entry = await store.getWithMetadata(RECIPES_KEY, { type: 'json' });
+  if (!entry) {
+    return { data: { recipes: [] }, etag: null };
+  }
+
+  if (!entry.data || !Array.isArray(entry.data.recipes)) {
+    throw new Error('Stored recipe data must contain a recipes array.');
+  }
+
+  return { data: entry.data, etag: entry.etag };
 }
 
-async function githubRequest(url, token, options = {}) {
-  return fetch(url, {
-    ...options,
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${token}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'recipe-table-netlify-function',
-      ...options.headers
+async function appendRecipe(store, recipe) {
+  for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt += 1) {
+    const { data, etag } = await readRecipes(store);
+    data.recipes.push(recipe);
+    const options = etag ? { onlyIfMatch: etag } : { onlyIfNew: true };
+    const result = await store.setJSON(RECIPES_KEY, data, options);
+    if (result.modified) {
+      return data;
     }
-  });
-}
-
-async function readRecipes(repository, branch, token) {
-  const url = recipesUrl(repository, branch);
-  url.searchParams.set('ref', branch);
-  const response = await githubRequest(url, token);
-  if (response.status === 404) {
-    return { data: { recipes: [] }, sha: null };
-  }
-  if (!response.ok) {
-    console.error(`GitHub recipe read failed with status ${response.status}.`);
-    throw new Error('Could not read recipes.json from GitHub. Check the repository and token permissions.');
   }
 
-  const file = await response.json();
-  if (file.encoding !== 'base64' || typeof file.content !== 'string') {
-    throw new Error('GitHub returned recipes.json in an unsupported format.');
-  }
-
-  let data;
-  try {
-    data = JSON.parse(Buffer.from(file.content, 'base64').toString('utf8'));
-  } catch {
-    throw new Error('recipes.json in GitHub is not valid JSON.');
-  }
-  if (!data || !Array.isArray(data.recipes)) {
-    throw new Error('recipes.json must contain a recipes array.');
-  }
-
-  return { data, sha: file.sha };
-}
-
-async function writeRecipes(repository, branch, token, data, sha) {
-  const body = {
-    message: 'Add recipe from the recipe site',
-    content: Buffer.from(JSON.stringify(data, null, 2), 'utf8').toString('base64'),
-    branch
-  };
-  if (sha) body.sha = sha;
-
-  const response = await githubRequest(recipesUrl(repository, branch), token, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  if (response.status === 409 || response.status === 422) {
-    return false;
-  }
-  if (!response.ok) {
-    console.error(`GitHub recipe write failed with status ${response.status}.`);
-    throw new Error('Could not update recipes.json in GitHub. Check that the token has Contents: Read and write permission.');
-  }
-  return true;
+  return null;
 }
 
 exports.handler = async event => {
   if (event.httpMethod !== 'GET' && event.httpMethod !== 'POST') {
-    return {
-      ...respond(405, { error: 'Method not allowed.' }),
-      headers: { ...respond(405, {}).headers, Allow: 'GET, POST' }
-    };
+    return respond(405, { error: 'Method not allowed.' }, { Allow: 'GET, POST' });
   }
 
-  let settings;
+  let store;
   try {
-    settings = getSettings();
+    store = getStore(STORE_NAME);
   } catch (error) {
-    return respond(503, { error: error.message });
+    console.error('Unable to access Netlify Blobs:', error);
+    return respond(503, { error: 'Recipe storage is not available in this Netlify deployment.' });
   }
 
   if (event.httpMethod === 'GET') {
     try {
-      const { data } = await readRecipes(settings.repository, settings.branch, settings.token);
+      const { data } = await readRecipes(store);
       return respond(200, data);
     } catch (error) {
-      console.error('Unable to load recipes:', error);
-      return respond(500, { error: error.message || 'Unable to load recipes.' });
+      console.error('Unable to load stored recipes:', error);
+      return respond(500, { error: 'Unable to load recipes from Netlify storage.' });
     }
   }
 
-  if (typeof event.body !== 'string' || Buffer.byteLength(event.body, 'utf8') > MAX_BODY_BYTES) {
-    return respond(413, { error: 'Recipe submission is missing or too large.' });
+  if (typeof event.body !== 'string') {
+    return respond(400, { error: 'Request must contain valid JSON.' });
+  }
+
+  const body = event.isBase64Encoded
+    ? Buffer.from(event.body, 'base64').toString('utf8')
+    : event.body;
+  if (Buffer.byteLength(body, 'utf8') > MAX_BODY_BYTES) {
+    return respond(413, { error: 'Recipe submission is too large.' });
   }
 
   let submitted;
   try {
-    submitted = JSON.parse(event.body);
+    submitted = JSON.parse(body);
   } catch {
     return respond(400, { error: 'Request must contain valid JSON.' });
   }
@@ -178,11 +128,9 @@ exports.handler = async event => {
   }
 
   try {
-    const { data, sha } = await readRecipes(settings.repository, settings.branch, settings.token);
-    data.recipes.push(recipe);
-    const saved = await writeRecipes(settings.repository, settings.branch, settings.token, data, sha);
-    if (!saved) {
-      return respond(409, { error: 'Another recipe was saved at the same time. Please submit your recipe again.' });
+    const data = await appendRecipe(store, recipe);
+    if (!data) {
+      return respond(409, { error: 'Recipes are being updated. Please submit your recipe again.' });
     }
     return respond(201, {
       success: true,
@@ -190,7 +138,7 @@ exports.handler = async event => {
       recipes: data.recipes
     });
   } catch (error) {
-    console.error('Unable to save recipe:', error);
-    return respond(500, { error: error.message || 'Unable to save the recipe.' });
+    console.error('Unable to save recipe to Netlify Blobs:', error);
+    return respond(500, { error: 'Unable to save the recipe to Netlify storage.' });
   }
 };
