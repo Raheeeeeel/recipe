@@ -1,10 +1,9 @@
 const form = document.getElementById('recipeForm');
 const list = document.getElementById('recipesList');
 
-// Load recipes on open
-async function loadRecipes() {
-  const res = await fetch('/api/recipes');
-  const recipes = await res.json();
+// Load from localStorage
+function loadRecipes() {
+  const recipes = JSON.parse(localStorage.getItem('recipes') || '[]');
   list.innerHTML = '';
   recipes.forEach(r => {
     list.innerHTML += `
@@ -17,25 +16,20 @@ async function loadRecipes() {
   });
 }
 
-// Save new recipe
-form.addEventListener('submit', async e => {
+// Save to localStorage
+form.addEventListener('submit', e => {
   e.preventDefault();
-  const newRecipe = {
+  const recipes = JSON.parse(localStorage.getItem('recipes') || '[]');
+  recipes.push({
     name: document.getElementById('name').value,
     ingredients: document.getElementById('ingredients').value,
     steps: document.getElementById('steps').value,
     createdAt: new Date().toLocaleString()
-  };
-
-  await fetch('/api/recipes', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(newRecipe)
   });
-
+  localStorage.setItem('recipes', JSON.stringify(recipes, null, 2));
   form.reset();
   loadRecipes();
-  alert('✅ Saved! Check VS Code → recipes.json updated instantly!');
+  alert('✅ Saved! Stored in your browser');
 });
 
 function escapeHtml(text) {
