@@ -1,3 +1,16 @@
 {
-  "recipes": []
+  "recipes": [
+    {
+      "name": "adawda",
+      "description": "dasdasddsada",
+      "ingredients": [
+        "asdasd"
+      ],
+      "instructions": [
+        "adadas"
+      ],
+      "id": "40c6b952-9197-4108-9072-cefd003793b2",
+      "createdAt": "2026-11-04T12:33:19.316Z"
+    }
+  ]
 }
