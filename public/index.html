@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Offline Recipe Book</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>🍽️ My Recipe Book</h1>
+
+  <form id="recipeForm">
+    <h3>Add New Recipe</h3>
+    <input type="text" id="name" placeholder="Recipe Name" required>
+    <textarea id="ingredients" placeholder="Ingredients (one per line)" required></textarea>
+    <textarea id="steps" placeholder="Instructions" required></textarea>
+    <button type="submit">Save Recipe</button>
+  </form>
+
+  <h2>My Recipes</h2>
+  <div id="recipesList"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

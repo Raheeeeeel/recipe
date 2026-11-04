@@ -1,0 +1,8 @@
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+body { max-width: 800px; margin: 0 auto; padding: 20px; background: #f9f6f0; }
+h1, h2 { color: #4a3520; margin: 20px 0; }
+form { background: white; padding: 20px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 2px 8px #0001; }
+input, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+button { background: #8b5a2b; color: white; border: none; padding: 12px 24px; border-radius: 5px; font-size: 16px; cursor: pointer; }
+button:hover { background: #6d4422; }
+.recipe-card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px #0001; }
