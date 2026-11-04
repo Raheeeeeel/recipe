@@ -115,6 +115,7 @@
         .form-section { margin-top: 4rem; padding-top: 2.5rem; border-top: 1px solid var(--line); }
         .form-card { max-width: 760px; padding: clamp(1.3rem, 5vw, 2.4rem); }
         .form-intro { margin-bottom: 1.5rem; color: var(--muted); }
+        .sharing-note { margin: -1rem 0 1.25rem; padding: .8rem 1rem; border: 1px solid #dce8da; border-radius: 12px; background: #edf4eb; color: var(--green-dark); font-size: .9rem; }
         .field { margin-top: 1rem; }
         .field label, .list-label { display: block; margin-bottom: .4rem; font-weight: 750; }
         .field textarea { min-height: 90px; resize: vertical; }
@@ -164,7 +165,7 @@
                 <div>
                     <p class="eyebrow">From our kitchens</p>
                     <h2 id="recipes-heading">Community recipes</h2>
-                    <p>Every recipe shared here is available to everyone.</p>
+                    <p id="recipes-description">Recipes shared by the community.</p>
                 </div>
                 <span class="count" id="recipe-count" aria-live="polite">Loading…</span>
             </div>
@@ -181,7 +182,8 @@
             <div class="form-card">
                 <p class="eyebrow">Everyone can contribute</p>
                 <h2 id="add-heading">Add your recipe</h2>
-                <p class="form-intro">No account needed. Your recipe will be shared with everyone who visits this site.</p>
+                <p class="form-intro">No account needed. Add a favorite recipe to the collection.</p>
+                <p class="sharing-note" id="sharing-note" role="status"></p>
                 <form id="recipe-form">
                     <div class="field">
                         <label for="recipe-name">Recipe name <span aria-hidden="true">*</span></label>
@@ -214,7 +216,13 @@
         const recipeCount = document.getElementById('recipe-count');
         const form = document.getElementById('recipe-form');
         const statusBox = document.getElementById('form-status');
+        const sharingNote = document.getElementById('sharing-note');
+        const recipesDescription = document.getElementById('recipes-description');
+        const LOCAL_RECIPES_KEY = 'our-recipe-table.recipes';
         let recipes = [];
+        let storageMode = 'server';
+
+        class ApiUnavailableError extends Error {}
 
         function addItem(kind, value = '') {
             const isIngredient = kind === 'ingredient';
@@ -259,22 +267,67 @@
             const contentType = response.headers.get('content-type') || '';
             const body = await response.text();
             if (!contentType.includes('application/json')) {
-                throw new Error(
-                    'The recipe API returned a web page instead of data. Start the app with "node server.js" and open http://localhost:3000 (not Live Server or the HTML file directly).'
-                );
+                throw new ApiUnavailableError('The recipe API is not available from this page.');
             }
 
             let result;
             try {
                 result = JSON.parse(body);
             } catch {
-                throw new Error('The recipe server returned invalid JSON. Restart it with "node server.js" and try again.');
+                throw new Error('The recipe server returned invalid JSON.');
             }
 
             if (!response.ok) {
                 throw new Error(result.error || `The recipe server returned an error (${response.status}).`);
             }
             return result;
+        }
+
+        function setStorageMode(mode) {
+            storageMode = mode;
+            if (mode === 'local') {
+                sharingNote.textContent = 'Saved only in this browser on this device. To share recipes with other people, publish this site with a shared recipe server.';
+                recipesDescription.textContent = 'Recipes saved in this browser on this device.';
+            } else {
+                sharingNote.textContent = 'Recipes are shared with everyone visiting this site.';
+                recipesDescription.textContent = 'Recipes shared by the community.';
+            }
+        }
+
+        function readLocalRecipes() {
+            const stored = localStorage.getItem(LOCAL_RECIPES_KEY);
+            if (stored === null) return [];
+            const data = JSON.parse(stored);
+            if (!Array.isArray(data) || data.some(recipe =>
+                !recipe || typeof recipe.name !== 'string' ||
+                !Array.isArray(recipe.ingredients) || !Array.isArray(recipe.instructions)
+            )) {
+                throw new Error('Saved recipes in this browser are invalid. Clear this site’s saved data and try again.');
+            }
+            return data;
+        }
+
+        function saveRecipeLocally(recipe) {
+            const savedRecipes = readLocalRecipes();
+            const currentIds = new Set(recipes.map(currentRecipe => currentRecipe.id).filter(Boolean));
+            const combinedRecipes = [
+                ...recipes,
+                ...savedRecipes.filter(savedRecipe => !currentIds.has(savedRecipe.id))
+            ];
+            recipe.id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            recipe.createdAt = new Date().toISOString();
+            combinedRecipes.push(recipe);
+            localStorage.setItem(LOCAL_RECIPES_KEY, JSON.stringify(combinedRecipes));
+            recipes = combinedRecipes;
+        }
+
+        function showRecipeLoadError(error) {
+            recipeCount.textContent = 'Unavailable';
+            recipeList.replaceChildren();
+            const message = document.createElement('p');
+            message.className = 'error-message';
+            message.textContent = error.message;
+            recipeList.append(message);
         }
 
         function renderRecipes() {
@@ -322,14 +375,20 @@
                     throw new Error('The recipe server returned data in an unexpected format.');
                 }
                 recipes = result.recipes;
+                setStorageMode('server');
                 renderRecipes();
             } catch (error) {
-                recipeCount.textContent = 'Unavailable';
-                recipeList.replaceChildren();
-                const message = document.createElement('p');
-                message.className = 'error-message';
-                message.textContent = `${error.message} Please refresh the page or try again later.`;
-                recipeList.append(message);
+                if (!(error instanceof ApiUnavailableError) && !(error instanceof TypeError)) {
+                    showRecipeLoadError(error);
+                    return;
+                }
+                try {
+                    recipes = readLocalRecipes();
+                    setStorageMode('local');
+                    renderRecipes();
+                } catch (localError) {
+                    showRecipeLoadError(localError);
+                }
             }
         }
 
@@ -365,16 +424,20 @@
             statusBox.dataset.state = '';
             statusBox.textContent = 'Sharing your recipe…';
             try {
-                const response = await fetch('/api/recipes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(recipe)
-                });
-                const result = await readApiResponse(response);
-                if (!Array.isArray(result.recipes)) {
-                    throw new Error('The recipe server saved the recipe but returned data in an unexpected format. Refresh to check the recipe list.');
+                if (storageMode === 'local') {
+                    saveRecipeLocally(recipe);
+                } else {
+                    const response = await fetch('/api/recipes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(recipe)
+                    });
+                    const result = await readApiResponse(response);
+                    if (!Array.isArray(result.recipes)) {
+                        throw new Error('The recipe server saved the recipe but returned data in an unexpected format. Refresh to check the recipe list.');
+                    }
+                    recipes = result.recipes;
                 }
-                recipes = result.recipes;
                 renderRecipes();
                 form.reset();
                 document.getElementById('ingredients-list').replaceChildren();
@@ -382,9 +445,28 @@
                 addItem('ingredient');
                 addItem('step');
                 statusBox.dataset.state = 'success';
-                statusBox.textContent = 'Your recipe has been shared with everyone. Thank you!';
+                statusBox.textContent = storageMode === 'local'
+                    ? 'Your recipe is saved in this browser on this device. Thank you!'
+                    : 'Your recipe has been shared with everyone. Thank you!';
                 document.getElementById('recipes-heading').scrollIntoView({ behavior: 'smooth' });
             } catch (error) {
+                if (storageMode === 'server' && (error instanceof ApiUnavailableError || error instanceof TypeError)) {
+                    try {
+                        setStorageMode('local');
+                        saveRecipeLocally(recipe);
+                        renderRecipes();
+                        form.reset();
+                        document.getElementById('ingredients-list').replaceChildren();
+                        document.getElementById('steps-list').replaceChildren();
+                        addItem('ingredient');
+                        addItem('step');
+                        statusBox.dataset.state = 'success';
+                        statusBox.textContent = 'Your recipe is saved in this browser on this device. It is not shared online.';
+                        return;
+                    } catch (localError) {
+                        error = localError;
+                    }
+                }
                 statusBox.dataset.state = 'error';
                 statusBox.textContent = error.message;
             } finally {
