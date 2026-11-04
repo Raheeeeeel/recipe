@@ -183,7 +183,7 @@
                 <p class="eyebrow">Everyone can contribute</p>
                 <h2 id="add-heading">Add your recipe</h2>
                 <p class="form-intro">No account needed. Recipes are saved to the project’s <code>recipes.json</code> file.</p>
-                <p class="sharing-note" id="sharing-note" role="status">To load and save recipes, start the recipe server using <code>run-recipe.bat</code>.</p>
+                <p class="sharing-note" id="sharing-note" role="status">To load and save recipes, open this folder in a terminal, run <code>node server.js</code>, then visit <code>http://localhost:3000</code>.</p>
                 <form id="recipe-form">
                     <div class="field">
                         <label for="recipe-name">Recipe name <span aria-hidden="true">*</span></label>
@@ -285,7 +285,7 @@
             const message = document.createElement('p');
             message.className = 'error-message';
             message.textContent = error instanceof ApiUnavailableError || error instanceof TypeError
-                ? 'The recipe server is not running. Double-click run-recipe.bat, then open the page from the server window. Recipes cannot be saved to recipes.json from a standalone HTML preview.'
+                ? 'The recipe server is not running. Open this folder in a terminal, run "node server.js", then visit http://localhost:3000. Recipes cannot be saved to recipes.json from a standalone HTML preview.'
                 : error.message;
             recipeList.append(message);
         }
@@ -395,7 +395,7 @@
             } catch (error) {
                 statusBox.dataset.state = 'error';
                 statusBox.textContent = error instanceof ApiUnavailableError || error instanceof TypeError
-                    ? 'The recipe server is not running. Double-click run-recipe.bat, then open the page from the server window. This recipe was not saved.'
+                    ? 'The recipe server is not running. Open this folder in a terminal, run "node server.js", then visit http://localhost:3000. This recipe was not saved.'
                     : error.message;
             } finally {
                 submitButton.disabled = false;
