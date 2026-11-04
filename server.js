@@ -22,11 +22,36 @@ function sendJson(res, status, data) {
 }
 
 function readRecipes() {
-  const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  const contents = fs.readFileSync(DATA_FILE, 'utf8');
+  if (!contents.trim()) {
+    console.warn('recipes.json was empty; restoring it as an empty recipe collection.');
+    const emptyData = { recipes: [] };
+    writeRecipes(emptyData);
+    return emptyData;
+  }
+
+  const data = JSON.parse(contents);
   if (!data || !Array.isArray(data.recipes)) {
     throw new Error('Recipe data must contain a recipes array.');
   }
   return data;
+}
+
+function writeRecipes(data) {
+  const temporaryFile = `${DATA_FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(temporaryFile, JSON.stringify(data, null, 2), { flag: 'wx' });
+  try {
+    fs.renameSync(temporaryFile, DATA_FILE);
+  } catch (error) {
+    try {
+      fs.unlinkSync(temporaryFile);
+    } catch (cleanupError) {
+      if (cleanupError.code !== 'ENOENT') {
+        console.error('Unable to remove temporary recipe data file:', cleanupError);
+      }
+    }
+    throw error;
+  }
 }
 
 function validateRecipe(value) {
@@ -128,7 +153,7 @@ const server = http.createServer((req, res) => {
       try {
         const data = readRecipes();
         data.recipes.push(recipe);
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+        writeRecipes(data);
         sendJson(res, 201, { success: true, totalRecipes: data.recipes.length, recipes: data.recipes });
       } catch (error) {
         console.error('Unable to save recipe:', error);
