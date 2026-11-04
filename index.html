@@ -255,6 +255,28 @@
             return section;
         }
 
+        async function readApiResponse(response) {
+            const contentType = response.headers.get('content-type') || '';
+            const body = await response.text();
+            if (!contentType.includes('application/json')) {
+                throw new Error(
+                    'The recipe API returned a web page instead of data. Start the app with "node server.js" and open http://localhost:3000 (not Live Server or the HTML file directly).'
+                );
+            }
+
+            let result;
+            try {
+                result = JSON.parse(body);
+            } catch {
+                throw new Error('The recipe server returned invalid JSON. Restart it with "node server.js" and try again.');
+            }
+
+            if (!response.ok) {
+                throw new Error(result.error || `The recipe server returned an error (${response.status}).`);
+            }
+            return result;
+        }
+
         function renderRecipes() {
             const query = document.getElementById('search-recipes').value.trim().toLowerCase();
             const matches = recipes.filter(recipe =>
@@ -295,8 +317,10 @@
         async function loadRecipes() {
             try {
                 const response = await fetch('/api/recipes');
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || 'Could not load recipes.');
+                const result = await readApiResponse(response);
+                if (!result || !Array.isArray(result.recipes)) {
+                    throw new Error('The recipe server returned data in an unexpected format.');
+                }
                 recipes = result.recipes;
                 renderRecipes();
             } catch (error) {
@@ -346,8 +370,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(recipe)
                 });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || 'Could not save your recipe.');
+                const result = await readApiResponse(response);
+                if (!Array.isArray(result.recipes)) {
+                    throw new Error('The recipe server saved the recipe but returned data in an unexpected format. Refresh to check the recipe list.');
+                }
                 recipes = result.recipes;
                 renderRecipes();
                 form.reset();

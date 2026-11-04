@@ -90,7 +90,8 @@ function validateRecipe(value) {
 }
 
 const server = http.createServer((req, res) => {
-  const pathname = new URL(req.url, 'http://localhost').pathname;
+  const rawPathname = new URL(req.url, 'http://localhost').pathname;
+  const pathname = rawPathname.length > 1 ? rawPathname.replace(/\/+$/, '') : rawPathname;
 
   if (req.method === 'GET' && (pathname === '/' || pathname === '/index.html')) {
     fs.readFile(path.join(__dirname, 'index.html'), (error, data) => {
@@ -166,6 +167,11 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/recipes' && req.method !== 'GET' && req.method !== 'POST') {
     res.setHeader('Allow', 'GET, POST');
     sendJson(res, 405, { error: 'Method not allowed.' });
+    return;
+  }
+
+  if (pathname.startsWith('/api/')) {
+    sendJson(res, 404, { error: 'API endpoint not found.' });
     return;
   }
 
