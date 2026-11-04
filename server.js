@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -332,4 +331,3 @@ server.listen(PORT, () => {
   console.log(`Recipe table running at http://localhost:${PORT}`);
   console.log(`Shared recipes are stored in: ${DATA_FILE}`);
 });
->>>>>>> 9272a6c7dd3b678c0546cfb83cafd2b58170c8c1
