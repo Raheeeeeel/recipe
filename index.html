@@ -116,6 +116,8 @@
         .form-card { max-width: 760px; padding: clamp(1.3rem, 5vw, 2.4rem); }
         .form-intro { margin-bottom: 1.5rem; color: var(--muted); }
         .sharing-note { margin: -1rem 0 1.25rem; padding: .8rem 1rem; border: 1px solid #dce8da; border-radius: 12px; background: #edf4eb; color: var(--green-dark); font-size: .9rem; }
+        .json-link { display: inline-block; margin: -.6rem 0 1rem; color: var(--green-dark); font-size: .9rem; font-weight: 750; text-underline-offset: .2em; }
+        .json-link:hover { color: var(--green); }
         .field { margin-top: 1rem; }
         .field label, .list-label { display: block; margin-bottom: .4rem; font-weight: 750; }
         .field textarea { min-height: 90px; resize: vertical; }
@@ -183,7 +185,8 @@
                 <p class="eyebrow">Everyone can contribute</p>
                 <h2 id="add-heading">Add your recipe</h2>
                 <p class="form-intro">No account needed. Recipes are saved to the project’s <code>recipes.json</code> file.</p>
-                <p class="sharing-note" id="sharing-note" role="status">To load and save recipes, open this folder in a terminal, run <code>node server.js</code>, then visit <code>http://localhost:3000</code>.</p>
+                <p class="sharing-note" id="sharing-note" role="status">Recipes are automatically saved to <code>recipes.json</code>. Start the app with <code>node server.js</code> to use the recipe list and form.</p>
+                <a class="json-link" href="/recipes.json" target="_blank" rel="noopener">View the saved recipes.json ↗</a>
                 <form id="recipe-form">
                     <div class="field">
                         <label for="recipe-name">Recipe name <span aria-hidden="true">*</span></label>

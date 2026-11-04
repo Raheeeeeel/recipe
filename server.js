@@ -8,10 +8,6 @@ const DATA_FILE = path.join(__dirname, 'recipes.json');
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_ITEMS = 100;
 
-if (!fs.existsSync(DATA_FILE)) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify({ recipes: [] }, null, 2));
-}
-
 function sendJson(res, status, data) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -51,6 +47,12 @@ function writeRecipes(data) {
       }
     }
     throw error;
+  }
+}
+
+function initializeRecipesFile() {
+  if (!fs.existsSync(DATA_FILE) || !fs.readFileSync(DATA_FILE, 'utf8').trim()) {
+    writeRecipes({ recipes: [] });
   }
 }
 
@@ -116,6 +118,16 @@ const server = http.createServer((req, res) => {
     } catch (error) {
       console.error('Unable to read recipes.json:', error);
       sendJson(res, 500, { error: 'Unable to load recipes. Check the server data file.' });
+    }
+    return;
+  }
+
+  if (pathname === '/recipes.json' && req.method === 'GET') {
+    try {
+      sendJson(res, 200, readRecipes());
+    } catch (error) {
+      console.error('Unable to read recipes.json:', error);
+      sendJson(res, 500, { error: 'Unable to load recipes.json.' });
     }
     return;
   }
@@ -190,6 +202,14 @@ server.on('error', error => {
   console.error('Unable to start the recipe server:', error);
   process.exitCode = 1;
 });
+
+try {
+  initializeRecipesFile();
+} catch (error) {
+  console.error('Unable to initialize recipes.json:', error);
+  process.exitCode = 1;
+  process.exit();
+}
 
 server.listen(PORT, () => {
   console.log(`Recipe table running at http://localhost:${PORT}`);
